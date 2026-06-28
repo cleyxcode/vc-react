@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, MicOff, PhoneOff, RefreshCw, Video, VideoOff } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-react';
 
 const ControlBar = ({
   isMuted,
@@ -9,23 +9,12 @@ const ControlBar = ({
   devices,
   selectedDevices,
   changeDevice,
-  endCall,
-  resetRoom
+  endCall
 }) => {
   return (
     <div className="control-bar-container">
       <div className="control-bar">
         
-        {/* Reset Room */}
-        <div className="control-group">
-          <button 
-            className="control-btn bg-gray"
-            onClick={resetRoom}
-            title="Reset Room"
-          >
-            <RefreshCw size={24} />
-          </button>
-        </div>
 
         {/* Mic Toggle */}
         <div className="control-group">

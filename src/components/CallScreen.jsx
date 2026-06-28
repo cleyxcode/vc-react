@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, LayoutPanelLeft, LayoutGrid, Maximize2, FlipHorizontal } from 'lucide-react';
+import { LayoutPanelLeft, LayoutGrid, Maximize2, FlipHorizontal } from 'lucide-react';
 import ControlBar from './ControlBar';
 import { CallContext } from '../context/CallContext';
 import { useWebRTC } from '../hooks/useWebRTC';
@@ -162,13 +162,9 @@ const CallScreen = ({ role, callType }) => {
   return (
     <div className="call-screen">
 
-      {/* ── Toolbar: back + layout switcher ── */}
-      <div className="call-toolbar">
-        <button className="back-to-chat-btn" onClick={() => navigate('/chat')} title="Kembali ke Chat">
-          <ArrowLeft size={18} />
-        </button>
-
-        {connected && callType !== 'voice' && !isMobile && (
+      {/* ── Toolbar: layout switcher only ── */}
+      {connected && callType !== 'voice' && !isMobile && (
+        <div className="call-toolbar">
           <div className="layout-switcher">
             <button 
               className="layout-btn" 
@@ -188,8 +184,8 @@ const CallScreen = ({ role, callType }) => {
               <LayoutGrid size={16} />
             </LayoutBtn>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Waiting overlay ── */}
       {(!connected && callType !== 'voice') && (
