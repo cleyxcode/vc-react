@@ -130,6 +130,10 @@ const CallScreen = ({ role, callType }) => {
   const [swapped,  setSwapped]  = useState(false);
   const [isLocalMirrored, setIsLocalMirrored] = useState(true);
 
+  // On mobile, always stay in PIP layout
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+  const effectiveLayout = isMobile ? 'pip' : layout;
+
   // in PIP mode: big = remote unless swapped; small = local unless swapped
   const bigStream   = swapped ? localStream  : remoteStream;
   const smallStream = swapped ? remoteStream : localStream;
@@ -164,7 +168,7 @@ const CallScreen = ({ role, callType }) => {
           <ArrowLeft size={18} />
         </button>
 
-        {connected && callType !== 'voice' && (
+        {connected && callType !== 'voice' && !isMobile && (
           <div className="layout-switcher">
             <button 
               className="layout-btn" 
@@ -221,7 +225,7 @@ const CallScreen = ({ role, callType }) => {
       {/* ══════════════════════════════
           LAYOUT: PIP (default)
          ══════════════════════════════ */}
-      {layout === 'pip' && callType !== 'voice' && (
+      {layout === 'pip' && callType !== 'voice' && effectiveLayout === 'pip' && (
         <>
           <VideoEl
             stream={bigStream}
@@ -243,7 +247,7 @@ const CallScreen = ({ role, callType }) => {
       {/* ══════════════════════════════
           LAYOUT: SIDE BY SIDE
          ══════════════════════════════ */}
-      {layout === 'side' && callType !== 'voice' && (
+      {layout === 'side' && callType !== 'voice' && effectiveLayout !== 'pip' && (
         <div className="side-layout">
           <div className="side-cell">
             <VideoEl stream={remoteStream} muted={false} mirror={false} className="side-video" />
@@ -259,7 +263,7 @@ const CallScreen = ({ role, callType }) => {
       {/* ══════════════════════════════
           LAYOUT: GRID (equal squares)
          ══════════════════════════════ */}
-      {layout === 'grid' && callType !== 'voice' && (
+      {layout === 'grid' && callType !== 'voice' && effectiveLayout !== 'pip' && (
         <div className="grid-layout">
           <div className="grid-cell">
             <VideoEl stream={remoteStream} muted={false} mirror={false} className="grid-video" />

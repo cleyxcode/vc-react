@@ -433,18 +433,27 @@ body {
 .main-video {
   width: 100%;
   height: 100%;
+  /* cover looks great on desktop/landscape; contain avoids crop on portrait mobile */
   object-fit: cover;
-  background: #1a1a2e;
+  background: #000;
+}
+
+/* On tall/portrait screens, contain so the whole face is visible */
+@media (orientation: portrait) {
+  .main-video {
+    object-fit: contain;
+    background: #111;
+  }
 }
 
 /* ── Draggable PIP box ── */
 .pip-box {
   position: absolute;
-  width: 120px;
-  height: 170px;
+  width: 110px;
+  height: 155px;
   border-radius: 14px;
   overflow: hidden;
-  border: 2px solid rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.2);
   box-shadow: 0 8px 24px rgba(0,0,0,0.6);
   cursor: grab;
   z-index: 65;
@@ -785,11 +794,14 @@ body {
     max-width: 85%;
   }
 
+  /* PIP box on mobile — portrait-friendly size in corner */
   .pip-box {
-    width: 90px;
-    height: 135px;
+    width: 100px;
+    height: 140px;
+    border-radius: 12px;
   }
   
+  /* Voice call avatar */
   .voice-avatar {
     width: 110px;
     height: 110px;
@@ -800,24 +812,38 @@ body {
     font-size: 28px;
   }
   
+  /* Minimal toolbar on mobile */
   .call-toolbar {
-    padding: 8px 12px;
+    padding: 10px 14px;
+    /* slightly taller gradient so back button is visible */
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
   }
 
+  .back-to-chat-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Control bar sits higher to avoid home indicator on iOS */
   .control-bar {
-    gap: 10px;
-    padding: 10px 16px;
-    bottom: 16px;
+    gap: 14px;
+    padding: 12px 20px;
+    bottom: 24px;
+    border-radius: 40px;
+    margin: 0 auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    right: auto;
   }
 
   .control-btn {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
   }
 
   .device-select {
-    max-width: 64px;
-    font-size: 9px;
+    display: none;
   }
 }
 
