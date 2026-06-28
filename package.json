@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "emoji-picker-react": "^4.19.1",
+    "emoji-regex": "^10.6.0",
     "firebase": "^12.15.0",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
