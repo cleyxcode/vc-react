@@ -1,5 +1,6 @@
 import React from 'react';
 import { Avatar } from './ui/Avatar';
+import { Check, CheckCheck } from 'lucide-react';
 
 const ChatBubble = ({ message, isMine }) => {
   const formatTime = (timestamp) => {
@@ -33,7 +34,18 @@ const ChatBubble = ({ message, isMine }) => {
           </div>
         )}
         {message.text && <p className="chat-text">{message.text}</p>}
-        <span className="chat-time">{formatTime(message.timestamp)}</span>
+        <span className="chat-time">
+          {formatTime(message.timestamp)}
+          {isMine && (
+            <span className="chat-read-receipt" style={{ marginLeft: '4px', display: 'inline-flex', alignItems: 'center' }}>
+              {message.read ? (
+                <CheckCheck size={14} color="#34b7f1" /> // Blue double check (whatsapp style)
+              ) : (
+                <Check size={14} color="#8696a0" />
+              )}
+            </span>
+          )}
+        </span>
       </div>
     </div>
   );

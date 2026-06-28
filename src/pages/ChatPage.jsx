@@ -3,17 +3,21 @@ import { UserContext } from '../context/UserContext';
 import { useChat } from '../hooks/useChat';
 import ChatBubble from '../components/ChatBubble';
 import ChatHeader from '../components/ChatHeader';
-import { Send, Paperclip, Loader2 } from 'lucide-react';
+import { Send, Paperclip, Loader2, Smile } from 'lucide-react';
 import { storage } from '../firebase';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import EmojiPicker from 'emoji-picker-react';
 
 const ChatPage = () => {
   const { profile } = useContext(UserContext);
-  const { messages, sendMessage } = useChat();
+  const { messages, sendMessage, otherUserTyping, otherUserPresence, setTypingStatus } = useChat(profile);
   const [inputText, setInputText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,11 +27,29 @@ const ChatPage = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = (e) => {
+  const handleTextChange = (e) => {
+    setInputText(e.target.value);
+    
+    // Handle typing status
+    setTypingStatus(true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      setTypingStatus(false);
+    }, 1500);
+  };
+
+  const handleEmojiClick = (emojiData) => {
+    setInputText(prev => prev + emojiData.emoji);
+  };
+
+  const handleSend = async (e) => {
     e.preventDefault();
     if (inputText.trim()) {
-      sendMessage(inputText, profile);
+      await sendMessage(inputText);
       setInputText('');
+      setTypingStatus(false);
+      setShowEmoji(false);
     }
   };
 
@@ -35,7 +57,6 @@ const ChatPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // determine type
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
     if (!isImage && !isVideo) {
@@ -43,7 +64,6 @@ const ChatPage = () => {
       return;
     }
 
-    // Check size limit (e.g., 50MB max for general, but we limit to 10MB just to be safe for now)
     if (file.size > 10 * 1024 * 1024) {
       alert("Ukuran file terlalu besar (Maksimal 10MB).");
       return;
@@ -58,17 +78,15 @@ const ChatPage = () => {
       const uploadTask = uploadBytesResumable(fileRef, file);
       
       uploadTask.on('state_changed', 
-        (snapshot) => {
-          // progress logic if needed
-        }, 
+        null, 
         (error) => {
           console.error("Upload error:", error);
-          alert("Gagal mengunggah file. Pastikan Firebase Storage Rules Anda mengizinkan upload (allow read, write: if true; untuk testing).");
+          alert("Gagal mengunggah file.");
           setIsUploading(false);
         }, 
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          await sendMessage('', profile, {
+          await sendMessage('', {
             type: isImage ? 'image' : 'video',
             data: downloadURL
           });
@@ -80,7 +98,6 @@ const ChatPage = () => {
       alert("Terjadi kesalahan saat upload.");
       setIsUploading(false);
     } finally {
-      // reset input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -89,7 +106,7 @@ const ChatPage = () => {
 
   return (
     <div className="page-container chat-page">
-      <ChatHeader />
+      <ChatHeader typing={otherUserTyping} presence={otherUserPresence} />
       <div className="chat-container">
         <div className="chat-messages" style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")' }}>
           {messages.map(msg => (
@@ -101,7 +118,27 @@ const ChatPage = () => {
           ))}
           <div ref={messagesEndRef} />
         </div>
+        
+        {showEmoji && (
+          <div className="emoji-picker-container" style={{ position: 'absolute', bottom: '60px', left: '10px', zIndex: 100 }}>
+            <EmojiPicker 
+              onEmojiClick={handleEmojiClick} 
+              emojiStyle="apple"
+              theme="dark"
+            />
+          </div>
+        )}
+
         <form onSubmit={handleSend} className="chat-input-area">
+          <button 
+            type="button" 
+            className="chat-attach-btn" 
+            onClick={() => setShowEmoji(v => !v)}
+            title="Emoji"
+          >
+            <Smile size={20} color={showEmoji ? '#00a884' : '#8696a0'} />
+          </button>
+          
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -118,13 +155,15 @@ const ChatPage = () => {
           >
             {isUploading ? <Loader2 size={20} className="spin-icon" /> : <Paperclip size={20} />}
           </button>
+          
           <input
             type="text"
             value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            onChange={handleTextChange}
             placeholder="Ketik pesan..."
             className="chat-input"
             disabled={isUploading}
+            onFocus={() => setShowEmoji(false)}
           />
           <button type="submit" className="chat-send-btn" disabled={isUploading || (!inputText.trim() && !isUploading)}>
             <Send size={20} />

@@ -4,7 +4,7 @@ import { CallContext } from '../context/CallContext';
 import { Video, Phone } from 'lucide-react';
 import { Avatar } from './ui/Avatar';
 
-const ChatHeader = () => {
+const ChatHeader = ({ typing, presence }) => {
   const { profile } = useContext(UserContext);
   const { initiateCall } = useContext(CallContext);
 
@@ -17,7 +17,9 @@ const ChatHeader = () => {
         <Avatar name={otherName} color={otherColor} size={40} />
         <div className="chat-contact-info">
           <div className="chat-contact-name">{otherName}</div>
-          <div className="chat-contact-status">Online</div>
+          <div className="chat-contact-status" style={{ color: typing || presence?.online ? '#00a884' : '#8696a0' }}>
+            {typing ? 'sedang mengetik...' : presence?.online ? 'Online' : 'Offline'}
+          </div>
         </div>
       </div>
 
