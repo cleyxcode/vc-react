@@ -28,8 +28,9 @@ const ProtectedRoutes = () => {
   const { callState } = useContext(CallContext);
 
   // Determine WebRTC role from who initiated the call
-  // callState.caller is the profile.id who clicked "call"
   const role = callState.caller === profile?.id ? 'caller' : 'callee';
+  // WebRTC room is scoped to the same pair as the call
+  const roomId = callState.roomKey || 'room_main';
 
   return (
     <div className="content-area">
@@ -37,8 +38,7 @@ const ProtectedRoutes = () => {
       <CallOverlay />
       <Routes>
         <Route path="/chat" element={<ChatPage />} />
-        {/* Pass role and type so CallScreen can configure WebRTC appropriately */}
-        <Route path="/call" element={<CallScreen role={role} callType={callState.type} />} />
+        <Route path="/call" element={<CallScreen role={role} callType={callState.type} roomId={roomId} />} />
         <Route path="*" element={<Navigate to="/chat" replace />} />
       </Routes>
     </div>

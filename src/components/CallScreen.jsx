@@ -1,12 +1,13 @@
 import React, { useRef, useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutPanelLeft, LayoutGrid, Maximize2, FlipHorizontal } from 'lucide-react';
+import { LayoutPanelLeft, LayoutGrid, Maximize2, FlipHorizontal, Rows2 } from 'lucide-react';
 import ControlBar from './ControlBar';
 import { CallContext } from '../context/CallContext';
 import { useWebRTC } from '../hooks/useWebRTC';
 
 /* ─── layout constants ──────────────────────────────── */
-const LAYOUTS = ['pip', 'side', 'grid'];  // pip=PIP overlay, side=side-by-side, grid=equal grid
+// pip=PIP overlay, side=side-by-side, grid=equal grid, stacked=top/bottom vertical split
+const LAYOUTS = ['pip', 'stacked', 'side', 'grid'];
 
 /* ─── single video element (memoised) ──────────────── */
 const VideoEl = React.forwardRef(({ stream, muted, mirror, className, style }, ref) => {
@@ -30,10 +31,11 @@ const VideoEl = React.forwardRef(({ stream, muted, mirror, className, style }, r
     />
   );
 });
+
 VideoEl.displayName = 'VideoEl';
 
 /* ─── draggable PIP box ─────────────────────────────── */
-const PipBox = ({ stream, muted, mirror, onClick }) => {
+const PipBox = ({ stream, muted, mirror, onClick, isPrivacyMode }) => {
   const ref         = useRef(null);
   const [pos, setPos] = useState({ x: null, y: null });
   const drag        = useRef({ active: false, ox: 0, oy: 0 });
@@ -96,7 +98,7 @@ const PipBox = ({ stream, muted, mirror, onClick }) => {
       onTouchStart={onDown}
       onClick={() => { if (!moved.current) onClick(); }}
     >
-      <VideoEl stream={stream} muted={muted} mirror={mirror} className="pip-video-inner" />
+      <VideoEl stream={stream} muted={muted} mirror={mirror} className={`pip-video-inner ${isPrivacyMode ? 'privacy-blur' : ''}`} />
       <div className="pip-hint"><Maximize2 size={14} /></div>
     </div>
   );
@@ -114,8 +116,8 @@ const LayoutBtn = ({ current, value, onClick, children, title }) => (
 );
 
 /* ─── MAIN COMPONENT ────────────────────────────────── */
-const CallScreen = ({ role, callType }) => {
-  const rtc = useWebRTC(role, callType);
+const CallScreen = ({ role, callType, roomId }) => {
+  const rtc = useWebRTC(role, callType, roomId || 'room_main');
   const {
     localStream, remoteStream, connectionState,
     isMuted, toggleMute, isVideoOff, toggleVideo,
@@ -126,13 +128,28 @@ const CallScreen = ({ role, callType }) => {
   const { endCall: endCallSignal } = useContext(CallContext);
   const navigate = useNavigate();
 
-  const [layout,   setLayout]   = useState('pip');   // 'pip' | 'side' | 'grid'
+  // Detect mobile/portrait on mount and on resize
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' && window.innerWidth <= 768
+  );
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Default: 'stacked' on mobile portrait, 'pip' on desktop
+  const [layout,   setLayout]   = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth <= 768 ? 'stacked' : 'pip'
+  );
   const [swapped,  setSwapped]  = useState(false);
   const [isLocalMirrored, setIsLocalMirrored] = useState(true);
+  const [isPrivacyMode, setIsPrivacyMode] = useState(false);
 
-  // On mobile, always stay in PIP layout
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-  const effectiveLayout = isMobile ? 'pip' : layout;
+  // On mobile, only allow pip or stacked
+  const effectiveLayout = isMobile
+    ? (layout === 'stacked' ? 'stacked' : 'pip')
+    : layout;
 
   // in PIP mode: big = remote unless swapped; small = local unless swapped
   const bigStream   = swapped ? localStream  : remoteStream;
@@ -162,27 +179,48 @@ const CallScreen = ({ role, callType }) => {
   return (
     <div className="call-screen">
 
-      {/* ── Toolbar: layout switcher only ── */}
-      {connected && callType !== 'voice' && !isMobile && (
+      {/* ── Toolbar: layout switcher ── */}
+      {connected && callType !== 'voice' && (
         <div className="call-toolbar">
           <div className="layout-switcher">
-            <button 
-              className="layout-btn" 
-              onClick={() => setIsLocalMirrored(m => !m)} 
-              title={isLocalMirrored ? "Matikan Cermin" : "Nyalakan Cermin"}
-              style={{ marginRight: '8px', borderRight: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px 0 0 16px', paddingRight: '14px' }}
-            >
-              <FlipHorizontal size={16} color={isLocalMirrored ? "#00a884" : "rgba(255,255,255,0.6)"} />
-            </button>
-            <LayoutBtn current={layout} value="pip"  onClick={setLayout} title="PIP (Float)">
-              <Maximize2 size={16} />
-            </LayoutBtn>
-            <LayoutBtn current={layout} value="side" onClick={setLayout} title="Berdampingan">
-              <LayoutPanelLeft size={16} />
-            </LayoutBtn>
-            <LayoutBtn current={layout} value="grid" onClick={setLayout} title="Grid Sejajar">
-              <LayoutGrid size={16} />
-            </LayoutBtn>
+            {/* Mirror toggle — desktop only */}
+            {!isMobile && (
+              <button
+                className="layout-btn"
+                onClick={() => setIsLocalMirrored(m => !m)}
+                title={isLocalMirrored ? "Matikan Cermin" : "Nyalakan Cermin"}
+                style={{ marginRight: '8px', borderRight: '1px solid rgba(255,255,255,0.2)', borderRadius: '16px 0 0 16px', paddingRight: '14px' }}
+              >
+                <FlipHorizontal size={16} color={isLocalMirrored ? "#00a884" : "rgba(255,255,255,0.6)"} />
+              </button>
+            )}
+
+            {/* Mobile layouts: pip + stacked */}
+            {isMobile && (
+              <>
+                <LayoutBtn current={effectiveLayout} value="stacked" onClick={setLayout} title="Atas/Bawah">
+                  <Rows2 size={16} />
+                </LayoutBtn>
+                <LayoutBtn current={effectiveLayout} value="pip" onClick={setLayout} title="PIP (Float)">
+                  <Maximize2 size={16} />
+                </LayoutBtn>
+              </>
+            )}
+
+            {/* Desktop layouts: pip + side + grid */}
+            {!isMobile && (
+              <>
+                <LayoutBtn current={layout} value="pip"  onClick={setLayout} title="PIP (Float)">
+                  <Maximize2 size={16} />
+                </LayoutBtn>
+                <LayoutBtn current={layout} value="side" onClick={setLayout} title="Berdampingan">
+                  <LayoutPanelLeft size={16} />
+                </LayoutBtn>
+                <LayoutBtn current={layout} value="grid" onClick={setLayout} title="Grid Sejajar">
+                  <LayoutGrid size={16} />
+                </LayoutBtn>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -221,13 +259,13 @@ const CallScreen = ({ role, callType }) => {
       {/* ══════════════════════════════
           LAYOUT: PIP (default)
          ══════════════════════════════ */}
-      {layout === 'pip' && callType !== 'voice' && effectiveLayout === 'pip' && (
+      {effectiveLayout === 'pip' && callType !== 'voice' && (
         <>
           <VideoEl
             stream={bigStream}
             muted={swapped}
             mirror={false}
-            className="main-video"
+            className={`main-video ${isPrivacyMode ? 'privacy-blur' : ''}`}
           />
           {smallStream && (
             <PipBox
@@ -235,22 +273,49 @@ const CallScreen = ({ role, callType }) => {
               muted={!swapped}
               mirror={false}
               onClick={() => setSwapped(s => !s)}
+              isPrivacyMode={isPrivacyMode}
             />
           )}
         </>
       )}
 
       {/* ══════════════════════════════
+          LAYOUT: STACKED (top/bottom)  ← mobile default
+         ══════════════════════════════ */}
+      {effectiveLayout === 'stacked' && callType !== 'voice' && (
+        <div className="stacked-layout">
+          <div className="stacked-cell" onClick={() => setSwapped(s => !s)}>
+            <VideoEl
+              stream={swapped ? localStream : remoteStream}
+              muted={swapped}
+              mirror={swapped ? isLocalMirrored : false}
+              className={`stacked-video ${isPrivacyMode ? 'privacy-blur' : ''}`}
+            />
+            <div className="video-label">{swapped ? 'Kamera Saya' : 'Lawan Bicara'}</div>
+          </div>
+          <div className="stacked-cell" onClick={() => setSwapped(s => !s)}>
+            <VideoEl
+              stream={swapped ? remoteStream : localStream}
+              muted={!swapped}
+              mirror={!swapped ? isLocalMirrored : false}
+              className={`stacked-video ${isPrivacyMode ? 'privacy-blur' : ''}`}
+            />
+            <div className="video-label">{swapped ? 'Lawan Bicara' : 'Kamera Saya'}</div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════
           LAYOUT: SIDE BY SIDE
          ══════════════════════════════ */}
-      {layout === 'side' && callType !== 'voice' && effectiveLayout !== 'pip' && (
+      {layout === 'side' && callType !== 'voice' && effectiveLayout === 'side' && (
         <div className="side-layout">
           <div className="side-cell">
-            <VideoEl stream={remoteStream} muted={false} mirror={false} className="side-video" />
+            <VideoEl stream={remoteStream} muted={false} mirror={false} className={`side-video ${isPrivacyMode ? 'privacy-blur' : ''}`} />
             <div className="video-label">Lawan Bicara</div>
           </div>
           <div className="side-cell">
-            <VideoEl stream={localStream}  muted={true}  mirror={isLocalMirrored}  className="side-video" />
+            <VideoEl stream={localStream}  muted={true}  mirror={isLocalMirrored}  className={`side-video ${isPrivacyMode ? 'privacy-blur' : ''}`} />
             <div className="video-label">Kamera Saya</div>
           </div>
         </div>
@@ -259,14 +324,14 @@ const CallScreen = ({ role, callType }) => {
       {/* ══════════════════════════════
           LAYOUT: GRID (equal squares)
          ══════════════════════════════ */}
-      {layout === 'grid' && callType !== 'voice' && effectiveLayout !== 'pip' && (
+      {layout === 'grid' && callType !== 'voice' && effectiveLayout === 'grid' && (
         <div className="grid-layout">
           <div className="grid-cell">
-            <VideoEl stream={remoteStream} muted={false} mirror={false} className="grid-video" />
+            <VideoEl stream={remoteStream} muted={false} mirror={false} className={`grid-video ${isPrivacyMode ? 'privacy-blur' : ''}`} />
             <div className="video-label">Lawan Bicara</div>
           </div>
           <div className="grid-cell">
-            <VideoEl stream={localStream}  muted={true}  mirror={isLocalMirrored}  className="grid-video" />
+            <VideoEl stream={localStream}  muted={true}  mirror={isLocalMirrored}  className={`grid-video ${isPrivacyMode ? 'privacy-blur' : ''}`} />
             <div className="video-label">Kamera Saya</div>
           </div>
         </div>
@@ -282,6 +347,9 @@ const CallScreen = ({ role, callType }) => {
         selectedDevices={selectedDevices}
         changeDevice={changeDevice}
         endCall={handleEndCall}
+        isPrivacyMode={isPrivacyMode}
+        togglePrivacyMode={() => setIsPrivacyMode(p => !p)}
+        isMobile={isMobile}
       />
     </div>
   );

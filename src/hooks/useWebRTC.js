@@ -12,14 +12,11 @@ const configuration = {
   ],
 };
 
-const ROOM = 'room_main';
-
 /**
  * role: 'caller' | 'callee'
- *   caller  → deletes old room, creates SDP offer
- *   callee  → waits for offer then answers
+ * roomId: per-pair room key, e.g. 'clay_uli'
  */
-export const useWebRTC = (role = 'caller', callType = 'video') => {
+export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_main') => {
   const [localStream,     setLocalStream]     = useState(null);
   const [remoteStream,    setRemoteStream]     = useState(null);
   const [connectionState, setConnectionState] = useState('Memulai...');
@@ -36,7 +33,7 @@ export const useWebRTC = (role = 'caller', callType = 'video') => {
   useEffect(() => { roleRef.current = role; }, [role]);
 
   /* ── refs to Firebase paths ──────────────────── */
-  const roomRef       = ref(db, `rooms/${ROOM}`);
+  const roomRef       = ref(db, `rooms/${roomId}`);
   const callerCands   = child(roomRef, 'callerCandidates');
   const calleeCands   = child(roomRef, 'calleeCandidates');
 

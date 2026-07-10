@@ -490,6 +490,31 @@ body {
   pointer-events: none;
 }
 
+/* ── Stacked layout (top/bottom) — mobile default ── */
+.stacked-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  gap: 3px;
+  background: #000;
+}
+
+.stacked-cell {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #1a1a1a;
+  cursor: pointer;
+}
+
+.stacked-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 /* ── Side-by-side layout ── */
 .side-layout {
   display: flex;
@@ -671,6 +696,11 @@ body {
   display: flex;
   justify-content: center;
   z-index: 60;
+  pointer-events: none; /* let clicks pass through the container */
+}
+
+.control-bar-container > * {
+  pointer-events: auto;
 }
 
 .control-bar {
@@ -776,6 +806,22 @@ body {
     border-right: none;
     border-radius: 0;
   }
+
+  /* On mobile the toolbar sits at the top, centered, compact */
+  .call-toolbar {
+    justify-content: center;
+    padding: 10px 14px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%);
+  }
+
+  .layout-switcher {
+    gap: 2px;
+    padding: 4px 6px;
+  }
+
+  .layout-btn {
+    padding: 5px 10px;
+  }
 }
 
 @media (max-width: 600px) {
@@ -819,53 +865,221 @@ body {
   /* Minimal toolbar on mobile */
   .call-toolbar {
     padding: 10px 14px;
-    /* slightly taller gradient so back button is visible */
     background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
   }
 
-  .back-to-chat-btn {
-    width: 36px;
-    height: 36px;
-  }
-
   /* Control bar sits higher to avoid home indicator on iOS */
-  .control-bar {
-    gap: 14px;
-    padding: 12px 20px;
-    bottom: 24px;
-    border-radius: 40px;
-    margin: 0 auto;
-    left: 50%;
-    transform: translateX(-50%);
-    width: auto;
-    right: auto;
+  .control-bar-container {
+    bottom: 20px;
   }
 
-  .control-btn {
-    width: 48px;
-    height: 48px;
+  .control-bar {
+    gap: 10px;
+    padding: 10px 18px;
+    border-radius: 40px;
+  }
+
+  /* Mobile-specific control bar */
+  .control-bar-mobile .control-bar {
+    gap: 8px;
+    padding: 9px 16px;
+  }
+
+  /* Smaller buttons on mobile */
+  .control-btn-sm {
+    width: 40px !important;
+    height: 40px !important;
   }
 
   .device-select {
     display: none;
   }
+
+  /* Stacked layout — reserve bottom space for control bar */
+  .stacked-layout {
+    padding-bottom: 72px;
+  }
 }
 
 @media (max-width: 380px) {
   .control-bar {
-    gap: 8px;
+    gap: 6px;
     padding: 8px 12px;
-    bottom: 10px;
   }
 
-  .control-btn {
-    width: 40px;
-    height: 40px;
+  .control-btn-sm {
+    width: 36px !important;
+    height: 36px !important;
   }
 
   .device-select { display: none; }
   
   .chat-attach-btn {
     padding: 6px;
+  }
+}
+
+/* Privacy Mode */
+.privacy-blur {
+  filter: blur(25px) brightness(0.6);
+  transition: filter 0.3s ease;
+}
+
+/* ===============================
+   ADMIN — Contact Switcher
+   =============================== */
+.contact-switcher {
+  display: flex;
+  gap: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 20px;
+  padding: 3px 5px;
+  align-items: center;
+}
+
+.switcher-btn {
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.switcher-btn:hover { transform: scale(1.1); }
+.switcher-btn.switcher-active {
+  border-color: #00a884;
+}
+
+/* ===============================
+   ADMIN — Selection Mode
+   =============================== */
+.select-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #2a3942;
+  border-bottom: 1px solid #1f2c33;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.select-count {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e9edef;
+}
+
+.select-bar-btn {
+  background: transparent;
+  border: none;
+  color: #aebac1;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.select-bar-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.select-bar-btn:disabled { opacity: 0.35; cursor: default; }
+.select-bar-delete { color: #f44336 !important; }
+.select-bar-delete:hover { background: rgba(244,67,54,0.12) !important; }
+
+/* Checkbox indicator on bubble */
+.select-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #aebac1;
+  flex-shrink: 0;
+  margin: 0 6px;
+  transition: background 0.15s, border-color 0.15s;
+  align-self: center;
+}
+.select-checkbox.checked {
+  background: #00a884;
+  border-color: #00a884;
+}
+.select-checkbox.checked::after {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg) translate(2px, 0);
+}
+
+.bubble-selected .chat-bubble,
+.bubble-highlight {
+  outline: 2px solid rgba(0,168,132,0.5);
+}
+
+.bubble-selected {
+  background: rgba(0,168,132,0.08) !important;
+  border-radius: 8px;
+}
+
+/* ===============================
+   CALL LOG BUBBLE (WhatsApp style)
+   =============================== */
+.call-log-container {
+  display: flex;
+  align-items: center;
+  padding: 2px 14px;
+  margin: 2px 0;
+}
+
+.call-log-bubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(42,57,66,0.85);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 20px;
+  padding: 6px 14px;
+  max-width: 280px;
+  font-size: 13px;
+  color: #e9edef;
+  backdrop-filter: blur(4px);
+}
+
+.call-log-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.call-log-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.call-log-duration {
+  color: #8696a0;
+  font-size: 12px;
+}
+
+.call-log-time {
+  font-size: 11px;
+  color: #8696a0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .call-log-bubble {
+    max-width: 240px;
+    font-size: 12px;
   }
 }

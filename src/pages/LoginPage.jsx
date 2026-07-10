@@ -5,9 +5,13 @@ import { Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 
+// clay = admin (can chat with both uli and code)
+// uli  = pacar  (only chats with clay)
+// code = third  (only chats with clay)
 const ACCOUNTS = {
-  clay: { id: 'saya',  name: 'eyy',  color: '#3498db' },
-  yuli: { id: 'pacar', name: 'ulii', color: '#e74c3c' },
+  clay: { id: 'clay',  name: 'clay',  color: '#3498db', isAdmin: true  },
+  uli:  { id: 'uli',   name: 'ulii',  color: '#e74c3c', isAdmin: false },
+  code: { id: 'code',  name: 'code',  color: '#2ecc71', isAdmin: false },
 };
 
 const LoginPage = () => {
@@ -23,7 +27,7 @@ const LoginPage = () => {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    const matched = ACCOUNTS[passcode.trim()];
+    const matched = ACCOUNTS[passcode.trim().toLowerCase()];
     if (matched) {
       login(matched);
       navigate('/chat');

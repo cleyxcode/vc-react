@@ -5,10 +5,17 @@ import { Phone, PhoneOff, Video, PhoneMissed } from 'lucide-react';
 import { Avatar } from './ui/Avatar';
 import '../styles/call-overlay.css';
 
+const USER_INFO = {
+  clay: { name: 'clay',  color: '#3498db' },
+  uli:  { name: 'ulii',  color: '#e74c3c' },
+  code: { name: 'code',  color: '#2ecc71' },
+};
+
 /* ===== Outgoing Call (Caller view) ===== */
-const CallingOverlay = ({ callState, onCancel }) => {
-  const otherName = callState.caller === 'saya' ? 'ulii' : 'eyy';
-  const otherColor = callState.caller === 'saya' ? '#e74c3c' : '#3498db';
+const CallingOverlay = ({ callState, onCancel, otherId }) => {
+  const other = USER_INFO[otherId] ?? { name: otherId, color: '#888' };
+  const otherName  = other.name;
+  const otherColor = other.color;
 
   return (
     <div className="calling-overlay">
@@ -88,7 +95,7 @@ const IncomingCallPopup = ({ callState, onAccept, onDecline }) => {
 
 /* ===== Main CallOverlay dispatcher ===== */
 const CallOverlay = () => {
-  const { callState, acceptCall, declineCall, endCall } = useContext(CallContext);
+  const { callState, acceptCall, declineCall, endCall, otherId } = useContext(CallContext);
   const { profile } = useContext(UserContext);
 
   if (!profile) return null;
@@ -97,7 +104,7 @@ const CallOverlay = () => {
   const isCaller = callState.caller === profile.id;
 
   if (isCaller && callState.status === 'calling') {
-    return <CallingOverlay callState={callState} onCancel={endCall} />;
+    return <CallingOverlay callState={callState} onCancel={endCall} otherId={otherId} />;
   }
 
   if (!isCaller && callState.status === 'ringing') {

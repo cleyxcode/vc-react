@@ -1,80 +1,80 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { ref, push, update, onValue, serverTimestamp, onDisconnect, set } from 'firebase/database';
+import {
+  ref, push, update, onValue, serverTimestamp,
+  onDisconnect, set, remove,
+} from 'firebase/database';
 
-export const useChat = (profile) => {
-  const [messages, setMessages] = useState([]);
-  const [otherUserTyping, setOtherUserTyping] = useState(false);
+/** Returns a stable room key for the two participants, e.g. "clay_uli" */
+export const getRoomKey = (idA, idB) =>
+  [idA, idB].sort().join('_');
+
+export const useChat = (profile, activeChat) => {
+  const [messages,          setMessages]          = useState([]);
+  const [otherUserTyping,   setOtherUserTyping]   = useState(false);
   const [otherUserPresence, setOtherUserPresence] = useState({ online: false, lastSeen: null });
 
-  // Determine other user ID based on current
-  const otherId = profile?.id === 'saya' ? 'pacar' : 'saya';
+  // The ID we're currently chatting with
+  const otherId  = activeChat || (profile?.id === 'clay' ? 'uli' : 'clay');
+  const roomKey  = profile ? getRoomKey(profile.id, otherId) : null;
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !roomKey) return;
 
-    // 1. Listen to messages
-    const messagesRef = ref(db, 'messages');
+    // ── 1. Messages scoped to this room ──────────────────
+    const messagesRef = ref(db, `messages/${roomKey}`);
     const unsubscribeMsgs = onValue(messagesRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const msgArray = Object.keys(data).map(key => ({
           id: key,
-          ...data[key]
+          ...data[key],
         }));
         msgArray.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
         setMessages(msgArray);
 
-        // Auto-mark as read for messages sent by the other user
+        // Auto-mark messages from the other user as read
         const updates = {};
         let hasUpdates = false;
         msgArray.forEach(msg => {
           if (msg.senderId !== profile.id && !msg.read) {
-            updates[`messages/${msg.id}/read`] = true;
+            updates[`messages/${roomKey}/${msg.id}/read`] = true;
             hasUpdates = true;
           }
         });
-        if (hasUpdates) {
-          update(ref(db), updates);
-        }
-
+        if (hasUpdates) update(ref(db), updates);
       } else {
         setMessages([]);
       }
     });
 
-    // 2. Presence system (Online/Offline)
-    const myPresenceRef = ref(db, `presence/${profile.id}`);
-    const connectedRef = ref(db, '.info/connected');
-    
-    const unsubscribeConn = onValue(connectedRef, (snap) => {
-      if (snap.val() === true) {
-        // We're connected (or reconnected)
-        onDisconnect(myPresenceRef).set({
-          online: false,
-          lastSeen: serverTimestamp()
-        }).then(() => {
-          set(myPresenceRef, {
-            online: true,
-            lastSeen: serverTimestamp()
-          });
-        });
-      }
-    });
+    // ── 2. Presence — clay (admin) never writes its own presence ──
+    let unsubscribeConn = () => {};
+    if (!profile.isAdmin) {
+      const myPresenceRef = ref(db, `presence/${profile.id}`);
+      const connectedRef  = ref(db, '.info/connected');
 
-    // 3. Listen to other user's presence
+      unsubscribeConn = onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+          onDisconnect(myPresenceRef).set({
+            online: false,
+            lastSeen: serverTimestamp(),
+          }).then(() => {
+            set(myPresenceRef, { online: true, lastSeen: serverTimestamp() });
+          });
+        }
+      });
+    }
+
+    // ── 3. Other user's presence ──────────────────────────
     const otherPresenceRef = ref(db, `presence/${otherId}`);
     const unsubscribeOtherPres = onValue(otherPresenceRef, (snap) => {
       const data = snap.val();
-      if (data) {
-        setOtherUserPresence(data);
-      } else {
-        setOtherUserPresence({ online: false, lastSeen: null });
-      }
+      setOtherUserPresence(data ?? { online: false, lastSeen: null });
     });
 
-    // 4. Listen to other user's typing status
-    const otherTypingRef = ref(db, `typing/${otherId}`);
+    // ── 4. Typing indicator ───────────────────────────────
+    const otherTypingRef = ref(db, `typing/${roomKey}/${otherId}`);
     const unsubscribeTyping = onValue(otherTypingRef, (snap) => {
       setOtherUserTyping(!!snap.val());
     });
@@ -84,36 +84,51 @@ export const useChat = (profile) => {
       unsubscribeConn();
       unsubscribeOtherPres();
       unsubscribeTyping();
-      // On unmount, set offline
-      set(myPresenceRef, { online: false, lastSeen: serverTimestamp() });
+      if (!profile.isAdmin) {
+        const myPresenceRef = ref(db, `presence/${profile.id}`);
+        set(myPresenceRef, { online: false, lastSeen: serverTimestamp() });
+      }
+      // Clear own typing flag on unmount
+      set(ref(db, `typing/${roomKey}/${profile.id}`), false);
     };
-  }, [profile, otherId]);
+  }, [profile?.id, roomKey, otherId]);
 
   const sendMessage = async (text, media = null) => {
-    if ((!text.trim() && !media) || !profile) return;
-    
-    const messagesRef = ref(db, 'messages');
+    if ((!text?.trim() && !media) || !profile || !roomKey) return;
+    const messagesRef = ref(db, `messages/${roomKey}`);
     await push(messagesRef, {
       text: text.trim(),
-      senderId: profile.id,
-      senderName: profile.name,
+      senderId:    profile.id,
+      senderName:  profile.name,
       senderColor: profile.color,
-      timestamp: serverTimestamp(),
+      timestamp:   serverTimestamp(),
       read: false,
-      media
+      media: media ?? null,
     });
   };
 
-  const setTypingStatus = (isTyping) => {
-    if (!profile) return;
-    set(ref(db, `typing/${profile.id}`), isTyping);
+  const deleteMessages = async (messageIds) => {
+    if (!profile?.isAdmin || !roomKey) return;
+    const updates = {};
+    messageIds.forEach(id => {
+      updates[`messages/${roomKey}/${id}`] = null;
+    });
+    await update(ref(db), updates);
   };
 
-  return { 
-    messages, 
-    sendMessage, 
-    otherUserTyping, 
+  const setTypingStatus = (isTyping) => {
+    if (!profile || !roomKey) return;
+    set(ref(db, `typing/${roomKey}/${profile.id}`), isTyping);
+  };
+
+  return {
+    messages,
+    sendMessage,
+    deleteMessages,
+    otherUserTyping,
     otherUserPresence,
-    setTypingStatus
+    setTypingStatus,
+    roomKey,
+    otherId,
   };
 };
