@@ -159,6 +159,10 @@ const CallScreen = ({ role, callType, roomId }) => {
 
   const connected = !!remoteStream;
 
+  // Show overlay whenever we don't have remote stream yet, but also show
+  // current connectionState text so user sees progress
+  const showWaiting = !connected && callType !== 'voice';
+
   const handleEndCall = async () => {
     stopTracks();
     await endCallSignal();
@@ -226,7 +230,7 @@ const CallScreen = ({ role, callType, roomId }) => {
       )}
 
       {/* ── Waiting overlay ── */}
-      {(!connected && callType !== 'voice') && (
+      {showWaiting && (
         <div className="status-overlay">
           <div className="status-spinner" />
           <h2>{connectionState}</h2>
