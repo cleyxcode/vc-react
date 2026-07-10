@@ -1,8 +1,9 @@
 import React, { useContext } from 'react';
 import { UserContext } from '../context/UserContext';
 import { CallContext } from '../context/CallContext';
-import { Video, Phone } from 'lucide-react';
+import { Video, Phone, LogOut } from 'lucide-react';
 import { Avatar } from './ui/Avatar';
+import { useNavigate } from 'react-router-dom';
 
 // Map of all user display info (mirror of LoginPage ACCOUNTS)
 const USER_INFO = {
@@ -12,15 +13,19 @@ const USER_INFO = {
 };
 
 const ChatHeader = ({ typing, presence }) => {
-  const { profile, activeChat, switchActiveChat } = useContext(UserContext);
+  const { profile, activeChat, switchActiveChat, logout } = useContext(UserContext);
   const { initiateCall, otherId } = useContext(CallContext);
+  const navigate = useNavigate();
 
   const other     = USER_INFO[otherId] ?? { name: otherId, color: '#888' };
   const isAdmin   = profile?.isAdmin;
 
-  // For non-admin users the other side is always clay, but clay is admin so
-  // we never show clay's online status — just show the static contact name.
   const showOnlineStatus = !isAdmin && otherId !== 'clay';
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <div className="chat-header">
@@ -76,6 +81,16 @@ const ChatHeader = ({ typing, presence }) => {
           aria-label="Mulai voice call"
         >
           <Phone size={20} />
+        </button>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="header-icon-btn"
+          title="Keluar"
+          aria-label="Logout"
+        >
+          <LogOut size={20} />
         </button>
       </div>
     </div>
