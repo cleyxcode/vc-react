@@ -183,6 +183,9 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
       console.log('[WebRTC] ontrack fired', e.streams);
       if (e.streams?.[0]) {
         setRemoteStream(e.streams[0]);
+        // A remote track means media is already flowing, even if the browser
+        // has not updated connectionState to "connected" yet.
+        setConnectionState('Tersambung');
       }
     };
 
