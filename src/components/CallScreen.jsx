@@ -132,8 +132,14 @@ const CallScreen = ({ role, callType, roomId }) => {
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && window.innerWidth <= 768
   );
+  const [isLandscape, setIsLandscape] = useState(
+    typeof window !== 'undefined' && window.innerWidth > window.innerHeight
+  );
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    const onResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      setIsLandscape(window.innerWidth > window.innerHeight);
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -146,9 +152,9 @@ const CallScreen = ({ role, callType, roomId }) => {
   const [isLocalMirrored, setIsLocalMirrored] = useState(true);
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
 
-  // On mobile, only allow pip or stacked
+  // Portrait mobile is stacked; landscape mobile is side-by-side like a MOBA.
   const effectiveLayout = isMobile
-    ? (layout === 'stacked' ? 'stacked' : 'pip')
+    ? (isLandscape ? 'side' : (layout === 'stacked' ? 'stacked' : 'pip'))
     : layout;
 
   // in PIP mode: big = remote unless swapped; small = local unless swapped
@@ -328,7 +334,7 @@ const CallScreen = ({ role, callType, roomId }) => {
       {/* ══════════════════════════════
           LAYOUT: SIDE BY SIDE
          ══════════════════════════════ */}
-      {layout === 'side' && callType !== 'voice' && effectiveLayout === 'side' && (
+      {effectiveLayout === 'side' && callType !== 'voice' && (
         <div className="side-layout">
           <div className="side-cell">
             <VideoEl stream={remoteStream} muted={false} mirror={true} className={`side-video ${isPrivacyMode ? 'privacy-blur' : ''}`} />
