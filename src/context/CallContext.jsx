@@ -40,6 +40,12 @@ export const CallProvider = ({ children }) => {
     const unsubscribes = listenedCallKeys.map(callKey => onValue(ref(db, callKey), (snapshot) => {
       const data = snapshot.val();
       const prevStatus = prevStatusRef.current;
+      console.log('[CALL DEBUG] signal received', {
+        callKey,
+        profile: profile.id,
+        activeChat,
+        data,
+      });
 
       if (!data) {
         prevStatusRef.current = 'idle';
@@ -78,19 +84,22 @@ export const CallProvider = ({ children }) => {
   const initiateCall = async (type) => {
     if (!profile || !pairKey || !callDbKey) return;
     const msgRoomKey = getRoomKey(profile.id, otherId);
-    await set(ref(db, callDbKey), {
-      caller:      profile.id,
-      callerName:  profile.name,
+    const payload = {
+      caller: profile.id,
+      callerName: profile.name,
       callerColor: profile.color,
       type,
-      status:      'ringing',
-      roomKey:     msgRoomKey,
-    });
+      status: 'ringing',
+      roomKey: msgRoomKey,
+    };
+    console.log('[CALL DEBUG] initiate', { callDbKey, payload });
+    await set(ref(db, callDbKey), payload);
   };
 
   const acceptCall = async () => {
     const activeCallKey = callState.roomKey ? `calls/${callState.roomKey}` : callDbKey;
     if (!activeCallKey) return;
+    console.log('[CALL DEBUG] accept', { activeCallKey, callState });
     await set(ref(db, `${activeCallKey}/status`), 'accepted');
   };
 

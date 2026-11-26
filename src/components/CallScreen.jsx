@@ -125,7 +125,7 @@ const CallScreen = ({ role, callType, roomId }) => {
     endCall: stopTracks,
   } = rtc;
 
-  const { endCall: endCallSignal } = useContext(CallContext);
+  const { endCall: endCallSignal, callState } = useContext(CallContext);
   const navigate = useNavigate();
 
   // Detect mobile/portrait on mount and on resize
@@ -253,6 +253,9 @@ const CallScreen = ({ role, callType, roomId }) => {
           <span>role: {role || 'null'}</span>
           <span>room: {roomId || 'null'}</span>
           <span>type: {callType || 'null'}</span>
+          <span>call status: {callState.status || 'null'}</span>
+          <span>caller: {callState.caller || 'null'}</span>
+          <span>caller name: {callState.callerName || 'null'}</span>
           <span>state: {connectionState}</span>
           <span>local: {localStream ? 'OK' : 'NONE'}</span>
           <span>remote: {remoteStream ? 'OK' : 'NONE'}</span>
