@@ -154,8 +154,10 @@ const CallScreen = ({ role, callType, roomId }) => {
   // in PIP mode: big = remote unless swapped; small = local unless swapped
   const bigStream   = swapped ? localStream  : remoteStream;
   const smallStream = swapped ? remoteStream : localStream;
-  const bigMirror   = swapped ? isLocalMirrored : false;
-  const smallMirror = !swapped ? isLocalMirrored : false;
+  // Mirror both feeds so the remote person sees the same left/right
+  // orientation as a mirror (your left hand stays on the left side).
+  const bigMirror   = swapped ? isLocalMirrored : true;
+  const smallMirror = !swapped ? isLocalMirrored : true;
 
   const connected = !!remoteStream;
 
@@ -231,9 +233,10 @@ const CallScreen = ({ role, callType, roomId }) => {
 
       {/* ── Waiting overlay ── */}
       {showWaiting && (
-        <div className="status-overlay">
+        <div className={`status-overlay ${localStream ? 'has-local-preview' : ''}`}>
           <div className="status-spinner" />
           <h2>{connectionState}</h2>
+          {localStream && <p className="status-help">Kamera Anda aktif — menunggu koneksi lawan bicara</p>}
         </div>
       )}
 
@@ -268,7 +271,7 @@ const CallScreen = ({ role, callType, roomId }) => {
           <VideoEl
             stream={bigStream}
             muted={swapped}
-            mirror={false}
+            mirror={bigMirror}
             className={`main-video ${isPrivacyMode ? 'privacy-blur' : ''}`}
           />
           {smallStream && (
@@ -292,7 +295,7 @@ const CallScreen = ({ role, callType, roomId }) => {
             <VideoEl
               stream={swapped ? localStream : remoteStream}
               muted={swapped}
-              mirror={swapped ? isLocalMirrored : false}
+              mirror={swapped ? isLocalMirrored : true}
               className={`stacked-video ${isPrivacyMode ? 'privacy-blur' : ''}`}
             />
             <div className="video-label">{swapped ? 'Kamera Saya' : 'Lawan Bicara'}</div>
@@ -301,7 +304,7 @@ const CallScreen = ({ role, callType, roomId }) => {
             <VideoEl
               stream={swapped ? remoteStream : localStream}
               muted={!swapped}
-              mirror={!swapped ? isLocalMirrored : false}
+              mirror={!swapped ? isLocalMirrored : true}
               className={`stacked-video ${isPrivacyMode ? 'privacy-blur' : ''}`}
             />
             <div className="video-label">{swapped ? 'Lawan Bicara' : 'Kamera Saya'}</div>
@@ -315,7 +318,7 @@ const CallScreen = ({ role, callType, roomId }) => {
       {layout === 'side' && callType !== 'voice' && effectiveLayout === 'side' && (
         <div className="side-layout">
           <div className="side-cell">
-            <VideoEl stream={remoteStream} muted={false} mirror={false} className={`side-video ${isPrivacyMode ? 'privacy-blur' : ''}`} />
+            <VideoEl stream={remoteStream} muted={false} mirror={true} className={`side-video ${isPrivacyMode ? 'privacy-blur' : ''}`} />
             <div className="video-label">Lawan Bicara</div>
           </div>
           <div className="side-cell">
@@ -331,7 +334,7 @@ const CallScreen = ({ role, callType, roomId }) => {
       {layout === 'grid' && callType !== 'voice' && effectiveLayout === 'grid' && (
         <div className="grid-layout">
           <div className="grid-cell">
-            <VideoEl stream={remoteStream} muted={false} mirror={false} className={`grid-video ${isPrivacyMode ? 'privacy-blur' : ''}`} />
+            <VideoEl stream={remoteStream} muted={false} mirror={true} className={`grid-video ${isPrivacyMode ? 'privacy-blur' : ''}`} />
             <div className="video-label">Lawan Bicara</div>
           </div>
           <div className="grid-cell">

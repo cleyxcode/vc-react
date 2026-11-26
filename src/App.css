@@ -594,6 +594,20 @@ body {
   gap: 16px;
 }
 
+/* Keep the caller's camera preview visible while the remote peer connects. */
+.status-overlay.has-local-preview {
+  background: rgba(0,0,0,0.28);
+  pointer-events: none;
+  justify-content: flex-start;
+  padding-top: 30vh;
+}
+
+.status-help {
+  margin: -4px 0 0;
+  color: rgba(255,255,255,0.65);
+  font-size: 13px;
+}
+
 .status-overlay h2 {
   font-size: 18px;
   font-weight: 500;

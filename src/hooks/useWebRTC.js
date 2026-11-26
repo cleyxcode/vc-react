@@ -34,6 +34,9 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
   const roomIdRef      = useRef(roomId);
   // Firebase listener cleanup fns
   const unsubListeners = useRef([]);
+  // ICE candidates can arrive before the remote offer/answer is applied.
+  // Keep them until addIceCandidate is allowed by the browser.
+  const pendingRemoteCandidates = useRef([]);
 
   useEffect(() => { roleRef.current    = role;     }, [role]);
   useEffect(() => { callTypeRef.current = callType; }, [callType]);
@@ -57,6 +60,7 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
 
   /* ─── close PC and stop tracks ──────────────────────────── */
   const closePeer = useCallback(() => {
+    pendingRemoteCandidates.current = [];
     if (pcRef.current) {
       pcRef.current.ontrack           = null;
       pcRef.current.onicecandidate    = null;
@@ -89,11 +93,17 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
 
     // Wait for callee's answer
     const answerRef = child(roomRef, 'answer');
-    const onAnswer = (snap) => {
+    const onAnswer = async (snap) => {
       const d = snap.val();
       if (d && pc.signalingState !== 'closed' && !pc.currentRemoteDescription) {
         console.log('[WebRTC] got answer');
-        pc.setRemoteDescription(new RTCSessionDescription(d)).catch(console.error);
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(d));
+          const pending = pendingRemoteCandidates.current.splice(0);
+          await Promise.all(pending.map(c => pc.addIceCandidate(new RTCIceCandidate(c))));
+        } catch (err) {
+          console.error('[WebRTC] applying answer/candidates failed:', err);
+        }
       }
     };
     addListener(answerRef, 'value', onAnswer);
@@ -102,7 +112,11 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
     const onCalleeCand = (snap) => {
       const c = snap.val();
       if (c && pc.signalingState !== 'closed') {
-        pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.error);
+        if (!pc.remoteDescription) {
+          pendingRemoteCandidates.current.push(c);
+        } else {
+          pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.error);
+        }
       }
     };
     addListener(calleeCands, 'child_added', onCalleeCand);
@@ -126,6 +140,8 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
 
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+        const pending = pendingRemoteCandidates.current.splice(0);
+        await Promise.all(pending.map(c => pc.addIceCandidate(new RTCIceCandidate(c))));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await set(child(roomRef, 'answer'), { type: answer.type, sdp: answer.sdp });
@@ -135,7 +151,11 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
         const onCallerCand = (snap2) => {
           const c = snap2.val();
           if (c && pc.signalingState !== 'closed') {
-            pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.error);
+            if (!pc.remoteDescription) {
+              pendingRemoteCandidates.current.push(c);
+            } else {
+              pc.addIceCandidate(new RTCIceCandidate(c)).catch(console.error);
+            }
           }
         };
         addListener(callerCands, 'child_added', onCallerCand);
