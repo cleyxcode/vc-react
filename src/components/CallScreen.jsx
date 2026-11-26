@@ -180,9 +180,8 @@ const CallScreen = ({ role, callType, roomId }) => {
   const smallMirror = !swapped ? isLocalMirrored : true;
 
   const connected = !!remoteStream;
-  // Debug is always visible during calls so connection issues can be diagnosed
-  // directly from the main URL without adding ?debug=1.
-  const debugEnabled = true;
+  // Keep diagnostics in the browser console without showing them to users.
+  const debugEnabled = false;
 
   // Show overlay whenever we don't have remote stream yet, but also show
   // current connectionState text so user sees progress
