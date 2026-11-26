@@ -166,7 +166,9 @@ const CallScreen = ({ role, callType, roomId }) => {
   const smallMirror = !swapped ? isLocalMirrored : true;
 
   const connected = !!remoteStream;
-  const debugEnabled = new URLSearchParams(window.location.search).get('debug') === '1';
+  // Debug is always visible during calls so connection issues can be diagnosed
+  // directly from the main URL without adding ?debug=1.
+  const debugEnabled = true;
 
   // Show overlay whenever we don't have remote stream yet, but also show
   // current connectionState text so user sees progress
