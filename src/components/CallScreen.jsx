@@ -34,6 +34,20 @@ const VideoEl = React.forwardRef(({ stream, muted, mirror, className, style }, r
 
 VideoEl.displayName = 'VideoEl';
 
+const RemoteAudio = ({ stream }) => {
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (!audioRef.current || !stream) return;
+    audioRef.current.srcObject = stream;
+    audioRef.current.play().catch(error => {
+      console.warn('[WebRTC] audio autoplay blocked; tap the page to enable sound', error);
+    });
+  }, [stream]);
+
+  return <audio ref={audioRef} autoPlay playsInline />;
+};
+
 /* ─── draggable PIP box ─────────────────────────────── */
 const PipBox = ({ stream, muted, mirror, onClick, isPrivacyMode }) => {
   const ref         = useRef(null);
@@ -281,9 +295,7 @@ const CallScreen = ({ role, callType, roomId }) => {
             {connected ? 'Panggilan Suara Berlangsung' : connectionState}
           </h2>
           
-          {/* We still need the video elements in DOM for audio to play! (or audio elements) */}
-          <VideoEl stream={remoteStream} muted={false} className="hidden-media" />
-          <VideoEl stream={localStream} muted={true} className="hidden-media" />
+          <RemoteAudio stream={remoteStream} />
         </div>
       )}
 
