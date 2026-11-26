@@ -1,6 +1,6 @@
 import React from 'react';
 import { Avatar } from './ui/Avatar';
-import { Check, CheckCheck, PhoneIncoming, PhoneMissed, PhoneCall, Video } from 'lucide-react';
+import { Check, CheckCheck } from 'lucide-react';
 import emojiRegex from 'emoji-regex';
 
 /* ─── helpers ───────────────────────────────────────── */
@@ -52,68 +52,11 @@ const formatTime = (timestamp) => {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 };
 
-const formatDuration = (secs) => {
-  if (!secs || secs < 1) return '';
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  if (m > 0) return `${m} mnt ${s > 0 ? s + ' dtk' : ''}`.trim();
-  return `${s} dtk`;
-};
-
-/* ─── Call-log bubble ───────────────────────────────── */
-const CallLogBubble = ({ message, isMine, isSelected, isSelectMode, onSelect }) => {
-  const missed   = message.callResult === 'missed';
-  const isVideo  = message.callType   === 'video';
-  const color    = missed ? '#f44336' : '#00a884';
-  const Icon     = missed
-    ? PhoneMissed
-    : (isMine ? PhoneCall : PhoneIncoming);
-  const VideoIcon = Video;
-
-  const label = missed
-    ? (isMine ? 'Panggilan tidak terjawab' : 'Panggilan tidak terjawab')
-    : (isVideo ? 'Video call' : 'Panggilan suara');
-
-  const duration = !missed && message.duration > 0
-    ? formatDuration(message.duration)
-    : '';
-
-  return (
-    <div
-      className={`chat-bubble-container call-log-container ${isSelected ? 'bubble-selected' : ''}`}
-      style={{ justifyContent: 'center', alignItems: 'center' }}
-      onClick={isSelectMode ? () => onSelect(message.id) : undefined}
-    >
-      {isSelectMode && (
-        <div className={`select-checkbox ${isSelected ? 'checked' : ''}`} />
-      )}
-      <div className="call-log-bubble">
-        <span className="call-log-icon" style={{ color }}>
-          {isVideo ? <VideoIcon size={15} /> : <Icon size={15} />}
-        </span>
-        <span className="call-log-label" style={{ color: missed ? '#f44336' : '#e9edef' }}>
-          {label}
-          {duration && <span className="call-log-duration"> · {duration}</span>}
-        </span>
-        <span className="call-log-time">{formatTime(message.timestamp)}</span>
-      </div>
-    </div>
-  );
-};
-
 /* ─── Regular chat bubble ───────────────────────────── */
 const ChatBubble = ({ message, isMine, isSelected, isSelectMode, onSelect }) => {
-  // Call-log messages get their own special rendering
+  // VC history is intentionally hidden from the chat timeline.
   if (message.type === 'call_log') {
-    return (
-      <CallLogBubble
-        message={message}
-        isMine={isMine}
-        isSelected={isSelected}
-        isSelectMode={isSelectMode}
-        onSelect={onSelect}
-      />
-    );
+    return null;
   }
 
   return (

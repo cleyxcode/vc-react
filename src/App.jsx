@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import ChatPage from './pages/ChatPage';
 import CallScreen from './components/CallScreen';
 import CallOverlay from './components/CallOverlay';
+import { getRoomKey } from './hooks/useChat';
 import './App.css';
 
 /* Watch CallContext.navigateTo and navigate accordingly */
@@ -24,13 +25,15 @@ const NavigationWatcher = () => {
 };
 
 const ProtectedRoutes = () => {
-  const { profile } = useContext(UserContext);
+  const { profile, activeChat } = useContext(UserContext);
   const { callState } = useContext(CallContext);
 
   // Determine WebRTC role from who initiated the call
   const role   = callState.caller === profile?.id ? 'caller' : 'callee';
   // WebRTC room is scoped to the same pair as the call
-  const roomId = callState.roomKey || 'room_main';
+  // Never fall back to a shared room: both peers must use their actual pair room.
+  const otherId = profile?.isAdmin ? (activeChat || 'uli') : 'clay';
+  const roomId = callState.roomKey || (profile ? getRoomKey(profile.id, otherId) : 'room_main');
   // Freeze callType so it doesn't flip to null after call ends during redirect
   const callType = callState.type || 'video';
 

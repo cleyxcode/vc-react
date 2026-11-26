@@ -38,6 +38,8 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
   // Keep them until addIceCandidate is allowed by the browser.
   const pendingRemoteCandidates = useRef([]);
 
+  const debug = (...args) => console.log('[WebRTC DEBUG]', ...args);
+
   useEffect(() => { roleRef.current    = role;     }, [role]);
   useEffect(() => { callTypeRef.current = callType; }, [callType]);
   useEffect(() => { roomIdRef.current  = roomId;   }, [roomId]);
@@ -76,7 +78,7 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
 
   /* ─── 3a. CALLER logic ───────────────────────────────────── */
   const startAsCaller = useCallback(async (pc, roomRef, callerCands, calleeCands) => {
-    console.log('[WebRTC] role=CALLER, room=', roomIdRef.current);
+    debug('CALLER start', { room: roomIdRef.current, callType: callTypeRef.current });
     setConnectionState('Menunggu lawan bicara...');
 
     // Remove stale room so callee always gets a fresh offer
@@ -89,14 +91,14 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     await set(roomRef, { offer: { type: offer.type, sdp: offer.sdp } });
-    console.log('[WebRTC] offer written');
+    debug('offer written');
 
     // Wait for callee's answer
     const answerRef = child(roomRef, 'answer');
     const onAnswer = async (snap) => {
       const d = snap.val();
       if (d && pc.signalingState !== 'closed' && !pc.currentRemoteDescription) {
-        console.log('[WebRTC] got answer');
+        debug('answer received');
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(d));
           const pending = pendingRemoteCandidates.current.splice(0);
@@ -125,7 +127,7 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
 
   /* ─── 3b. CALLEE logic ───────────────────────────────────── */
   const startAsCallee = useCallback((pc, roomRef, callerCands, calleeCands) => {
-    console.log('[WebRTC] role=CALLEE, room=', roomIdRef.current);
+    debug('CALLEE start', { room: roomIdRef.current, callType: callTypeRef.current });
     setConnectionState('Menghubungkan...');
 
     pc.onicecandidate = e => {
@@ -136,7 +138,7 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
       const d = snap.val();
       if (!d?.offer || pc.signalingState === 'closed') return;
       if (pc.currentRemoteDescription) return; // already processed
-      console.log('[WebRTC] got offer, creating answer...');
+      debug('offer received, creating answer');
 
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
@@ -145,7 +147,7 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await set(child(roomRef, 'answer'), { type: answer.type, sdp: answer.sdp });
-        console.log('[WebRTC] answer written');
+        debug('answer written');
 
         // Now start collecting caller ICE candidates
         const onCallerCand = (snap2) => {
@@ -186,14 +188,22 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
 
     pc.onconnectionstatechange = () => {
       const s = pc.connectionState;
-      console.log('[WebRTC] connectionState:', s);
+      debug('connectionState:', s, 'ice:', pc.iceConnectionState);
       if (s === 'connected')                             setConnectionState('Tersambung');
       else if (s === 'disconnected' || s === 'failed')  setConnectionState('Koneksi terputus');
       else if (s === 'closed')                           setConnectionState('Sesi berakhir');
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('[WebRTC] iceState:', pc.iceConnectionState);
+      debug('iceState:', pc.iceConnectionState);
+    };
+
+    pc.onicecandidateerror = event => {
+      console.error('[WebRTC DEBUG] ICE candidate error:', {
+        url: event.url,
+        errorCode: event.errorCode,
+        errorText: event.errorText,
+      });
     };
 
     // Build Firebase refs fresh from current roomId
@@ -213,7 +223,7 @@ export const useWebRTC = (role = 'caller', callType = 'video', roomId = 'room_ma
     try {
       setConnectionState('Meminta akses media...');
       const reqVideo = callTypeRef.current !== 'voice';
-      console.log('[WebRTC] requesting media, video=', reqVideo, 'role=', roleRef.current, 'room=', roomIdRef.current);
+      debug('requesting media', { video: reqVideo, role: roleRef.current, room: roomIdRef.current });
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: reqVideo ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,

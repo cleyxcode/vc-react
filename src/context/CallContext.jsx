@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { db } from '../firebase';
-import { ref, onValue, set, remove, push, serverTimestamp } from 'firebase/database';
+import { ref, onValue, set, remove } from 'firebase/database';
 import { UserContext } from './UserContext';
 import { getRoomKey } from '../hooks/useChat';
 
@@ -19,7 +19,6 @@ export const CallProvider = ({ children }) => {
   });
   const [navigateTo, setNavigateTo] = useState(null);
   const prevStatusRef = useRef('idle');
-  const callStartTimeRef = useRef(null); // track when the call connected
 
   // The person clay is talking to; for non-admin it's always clay
   const otherId = profile?.isAdmin
@@ -56,26 +55,13 @@ export const CallProvider = ({ children }) => {
         prevStatusRef.current = newState.status;
         setCallState(newState);
       } else if (data.status === 'accepted') {
-        callStartTimeRef.current = Date.now();
         prevStatusRef.current = 'connected';
         setCallState(prev => ({ ...prev, status: 'connected' }));
         setNavigateTo('/call');
       } else if (data.status === 'declined') {
-        // Log missed call for the caller side
-        if (data.caller === profile.id && data.roomKey) {
-          _writeCallLog(data.roomKey, data.caller, data.type, 'missed', 0);
-        }
         prevStatusRef.current = 'idle';
         setCallState({ status: 'idle', type: null, caller: null, callerName: null, callerColor: null, roomKey: null });
       } else if (data.status === 'ended') {
-        // Log completed call
-        const duration = callStartTimeRef.current
-          ? Math.round((Date.now() - callStartTimeRef.current) / 1000)
-          : 0;
-        callStartTimeRef.current = null;
-        if (data.roomKey) {
-          _writeCallLog(data.roomKey, data.caller, data.type, 'ended', duration);
-        }
         prevStatusRef.current = 'idle';
         setCallState({ status: 'idle', type: null, caller: null, callerName: null, callerColor: null, roomKey: null });
         if (prevStatus === 'connected') setNavigateTo('/chat');
@@ -84,25 +70,6 @@ export const CallProvider = ({ children }) => {
 
     return () => unsubscribe();
   }, [profile?.id, callDbKey]);
-
-  /** Write a call-log entry into the messages room */
-  const _writeCallLog = (roomKey, callerId, callType, result, durationSecs) => {
-    if (!roomKey) return;
-    const msgRef = ref(db, `messages/${roomKey}`);
-    push(msgRef, {
-      type:        'call_log',
-      callType,            // 'video' | 'voice'
-      callResult:  result, // 'ended' | 'missed'
-      callerId,
-      duration:    durationSecs,
-      timestamp:   serverTimestamp(),
-      read:        true,
-      text:        '',
-      senderId:    callerId,
-      senderName:  '',
-      senderColor: '',
-    });
-  };
 
   const initiateCall = async (type) => {
     if (!profile || !pairKey || !callDbKey) return;

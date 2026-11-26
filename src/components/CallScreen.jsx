@@ -160,6 +160,7 @@ const CallScreen = ({ role, callType, roomId }) => {
   const smallMirror = !swapped ? isLocalMirrored : true;
 
   const connected = !!remoteStream;
+  const debugEnabled = new URLSearchParams(window.location.search).get('debug') === '1';
 
   // Show overlay whenever we don't have remote stream yet, but also show
   // current connectionState text so user sees progress
@@ -237,6 +238,18 @@ const CallScreen = ({ role, callType, roomId }) => {
           <div className="status-spinner" />
           <h2>{connectionState}</h2>
           {localStream && <p className="status-help">Kamera Anda aktif — menunggu koneksi lawan bicara</p>}
+        </div>
+      )}
+
+      {debugEnabled && (
+        <div className="call-debug-panel">
+          <div>DEBUG WEBRTC</div>
+          <span>role: {role || 'null'}</span>
+          <span>room: {roomId || 'null'}</span>
+          <span>type: {callType || 'null'}</span>
+          <span>state: {connectionState}</span>
+          <span>local: {localStream ? 'OK' : 'NONE'}</span>
+          <span>remote: {remoteStream ? 'OK' : 'NONE'}</span>
         </div>
       )}
 
