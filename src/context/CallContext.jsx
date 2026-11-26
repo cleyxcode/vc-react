@@ -28,12 +28,16 @@ export const CallProvider = ({ children }) => {
   // Firebase call signal node — scoped per pair
   const pairKey = profile ? getRoomKey(profile.id, otherId) : null;
   const callDbKey = pairKey ? `calls/${pairKey}` : null;
+  const listenedCallKeys = profile
+    ? (profile.isAdmin
+      ? ['uli', 'code'].map(id => `calls/${getRoomKey(profile.id, id)}`)
+      : [callDbKey].filter(Boolean))
+    : [];
 
   useEffect(() => {
-    if (!profile || !callDbKey) return;
+    if (!profile || listenedCallKeys.length === 0) return;
 
-    const callRef = ref(db, callDbKey);
-    const unsubscribe = onValue(callRef, (snapshot) => {
+    const unsubscribes = listenedCallKeys.map(callKey => onValue(ref(db, callKey), (snapshot) => {
       const data = snapshot.val();
       const prevStatus = prevStatusRef.current;
 
@@ -66,10 +70,10 @@ export const CallProvider = ({ children }) => {
         setCallState({ status: 'idle', type: null, caller: null, callerName: null, callerColor: null, roomKey: null });
         if (prevStatus === 'connected') setNavigateTo('/chat');
       }
-    });
+    }));
 
-    return () => unsubscribe();
-  }, [profile?.id, callDbKey]);
+    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+  }, [profile?.id, profile?.isAdmin, callDbKey, listenedCallKeys.join('|')]);
 
   const initiateCall = async (type) => {
     if (!profile || !pairKey || !callDbKey) return;
@@ -85,21 +89,24 @@ export const CallProvider = ({ children }) => {
   };
 
   const acceptCall = async () => {
-    if (!callDbKey) return;
-    await set(ref(db, `${callDbKey}/status`), 'accepted');
+    const activeCallKey = callState.roomKey ? `calls/${callState.roomKey}` : callDbKey;
+    if (!activeCallKey) return;
+    await set(ref(db, `${activeCallKey}/status`), 'accepted');
   };
 
   const declineCall = async () => {
-    if (!callDbKey) return;
-    await set(ref(db, `${callDbKey}/status`), 'declined');
-    setTimeout(() => remove(ref(db, callDbKey)), 800);
+    const activeCallKey = callState.roomKey ? `calls/${callState.roomKey}` : callDbKey;
+    if (!activeCallKey) return;
+    await set(ref(db, `${activeCallKey}/status`), 'declined');
+    setTimeout(() => remove(ref(db, activeCallKey)), 800);
   };
 
   const endCall = async () => {
-    if (!callDbKey) return;
-    await set(ref(db, `${callDbKey}/status`), 'ended');
+    const activeCallKey = callState.roomKey ? `calls/${callState.roomKey}` : callDbKey;
+    if (!activeCallKey) return;
+    await set(ref(db, `${activeCallKey}/status`), 'ended');
     setTimeout(() => {
-      remove(ref(db, callDbKey));
+      remove(ref(db, activeCallKey));
       // WebRTC room cleaned up by CallScreen via useWebRTC
     }, 800);
   };
