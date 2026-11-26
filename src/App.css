@@ -448,6 +448,15 @@ body {
     object-fit: contain;
     background: #111;
   }
+
+  /* Do not crop faces in portrait calls. Keep the complete camera frame. */
+  .stacked-video,
+  .side-video,
+  .grid-video,
+  .pip-video-inner {
+    object-fit: contain;
+    background: #111;
+  }
 }
 
 /* ── Draggable PIP box ── */
